@@ -1,3 +1,5 @@
+> 本工程已迁移至 [Container Forge 的 frp 工程](https://github.com/Aethersailor/container-forge/tree/main/frp)。后续更新在新仓库维护，镜像地址和标签保持不变。本仓库保留历史记录。
+
 # FRP Image Sync
 
 为 [FRP](https://github.com/fatedier/frp) 官方的 `frpc`、`frps` Docker 镜像提供 `latest` 标签，方便使用 Watchtower 等工具自动更新。
