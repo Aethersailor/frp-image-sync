@@ -37,17 +37,23 @@ jobs:
           echo '3737fbbdd791e04e7a831640b681f3397a376498e80e2ad9b1b2d27296f239bc  '"$RUNNER_TEMP/regctl" | sha256sum -c -
           chmod +x "$RUNNER_TEMP/regctl"
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
-      - name: Copy official images and publish latest
+      - name: Copy official images and reconcile tags
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME || github.repository_owner }}
+          DOCKERHUB_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE || github.repository_owner }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           REGCTL_CONFIG: ${{ runner.temp }}/regctl-config.json
           EVIDENCE_DIR: ${{ runner.temp }}/evidence
         run: |
           set -euo pipefail
+          test -n "$DOCKERHUB_TOKEN" || { echo 'Configure the DOCKERHUB_TOKEN repository secret before publishing'; exit 1; }
+          export DOCKERHUB_USERNAME="${DOCKERHUB_USERNAME,,}"
           trap 'rm -f "$REGCTL_CONFIG"' EXIT
           printf '%s' "$GH_TOKEN" | regctl registry login ghcr.io --user "$GITHUB_ACTOR" --pass-stdin
-          bash scripts/sync.sh
+          printf '%s' "$DOCKERHUB_TOKEN" | regctl registry login docker.io --user "$DOCKERHUB_USERNAME" --pass-stdin
+          python3 scripts/sync.py
       - name: Save digest evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
