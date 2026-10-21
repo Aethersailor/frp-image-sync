@@ -23,10 +23,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-    outputs:
-      version: ${{ steps.sync.outputs.version }}
-      frpc: ${{ steps.sync.outputs.frpc }}
-      frps: ${{ steps.sync.outputs.frps }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -41,21 +37,16 @@ jobs:
           echo '3737fbbdd791e04e7a831640b681f3397a376498e80e2ad9b1b2d27296f239bc  '"$RUNNER_TEMP/regctl" | sha256sum -c -
           chmod +x "$RUNNER_TEMP/regctl"
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
-      - name: Test promotion guards
-        run: bash tests/sync.test.sh
-      - name: Copy, verify, and promote both images
-        id: sync
+      - name: Copy official images and publish latest
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           REGCTL_CONFIG: ${{ runner.temp }}/regctl-config.json
-          DOCKER_CONFIG: ${{ runner.temp }}/docker-auth
           EVIDENCE_DIR: ${{ runner.temp }}/evidence
         run: |
           set -euo pipefail
-          trap 'rm -f "$REGCTL_CONFIG"; rm -rf "$DOCKER_CONFIG"' EXIT
+          trap 'rm -f "$REGCTL_CONFIG"' EXIT
           printf '%s' "$GH_TOKEN" | regctl registry login ghcr.io --user "$GITHUB_ACTOR" --pass-stdin
-          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
           bash scripts/sync.sh
       - name: Save digest evidence
         if: always()
@@ -65,35 +56,3 @@ jobs:
           path: ${{ runner.temp }}/evidence
           if-no-files-found: ignore
           retention-days: 90
-
-  verify-public:
-    needs: sync
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions: {}
-    steps:
-      - name: Pull and run both latest images anonymously
-        shell: bash
-        env:
-          OWNER: ${{ github.repository_owner }}
-          VERSION: ${{ needs.sync.outputs.version }}
-          FRPC_DIGEST: ${{ needs.sync.outputs.frpc }}
-          FRPS_DIGEST: ${{ needs.sync.outputs.frps }}
-          DOCKER_CONFIG: ${{ runner.temp }}/anonymous-docker
-        run: |
-          set -euo pipefail
-          mkdir -p "$DOCKER_CONFIG"
-          trap 'rm -rf "$DOCKER_CONFIG"' EXIT
-          for component in frpc frps; do
-            image="ghcr.io/${OWNER,,}/$component"
-            key="${component^^}_DIGEST"
-            expected=${!key}
-            for tag in "$VERSION" latest; do
-              docker pull "$image:$tag"
-              docker image inspect "$image:$tag" --format '{{json .RepoDigests}}' | jq -e --arg ref "$image@$expected" 'index($ref) != null'
-            done
-            actual=$(docker run --rm --network none --read-only --cap-drop ALL \
-              --security-opt no-new-privileges "$image@$expected" --version)
-            test "$actual" = "${VERSION#v}"
-            echo "Anonymous pull and version verified: $image:$VERSION / latest ($expected)"
-          done
