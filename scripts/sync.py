@@ -48,6 +48,7 @@ def http(method, url, token=None, payload=None, missing=False, accept="applicati
                 time.sleep(attempt + 1)
                 continue
             raise RuntimeError(f"{method} {url}: network request failed") from None
+    raise RuntimeError(f"{method} {url}: request retries exhausted")
 
 
 def github_pages(url, token, missing=False):
@@ -157,7 +158,7 @@ def withdraw(owner, namespace, tags, gh_token, hub_token):
 
 
 def main():
-    owner = os.environ["GITHUB_REPOSITORY"].split("/")[0].lower()
+    owner = os.environ["GHCR_NAMESPACE"].lower()
     namespace = os.environ["DOCKERHUB_NAMESPACE"].lower()
     gh_token = os.environ["GH_TOKEN"]
     evidence = Path(os.environ["EVIDENCE_DIR"])
