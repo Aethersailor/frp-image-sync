@@ -3,13 +3,19 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: daily
-      time: '04:20'
+      interval: cron
+      cronjob: '20 */6 * * *'
       timezone: Asia/Shanghai
-    rebase-strategy: auto
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 100
+    cooldown:
+      default-days: 0
+    allow:
+      - dependency-type: all
     groups:
       github-actions:
+        patterns: ['*']
+      github-actions-security:
+        applies-to: security-updates
         patterns: ['*']
     commit-message:
       prefix: ci

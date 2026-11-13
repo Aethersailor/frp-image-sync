@@ -8,7 +8,7 @@ on:
     branches: [main]
     paths: ['.github/workflows/dependabot-auto-merge.yml']
   schedule:
-    - cron: '42 */6 * * *'
+    - cron: '42 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -69,7 +69,6 @@ jobs:
 
           # Repository-token merges need an explicit follow-up workflow dispatch.
           if (( merged > 0 )); then
-            gh workflow run codeql.yml --repo "$REPOSITORY" --ref "$BASE_BRANCH" || result=1
             if jq -e 'any(.[]; . == ".github/workflows/frp.yml" or (test("^\\.github/|^docs/|\\.md$|(^|/)README[^/]*$") | not))' <<<"$merged_files" >/dev/null; then
               gh workflow run 'frp.yml' --repo "$REPOSITORY" --ref "$BASE_BRANCH" || result=1
             fi
